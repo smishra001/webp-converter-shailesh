@@ -502,32 +502,17 @@ Download videos from:
                         "bestaudio/best[height<=360]"
                     )
 
-                ydl_opts = { 
-                    "format": "best", 
-                    "outtmpl": f"{temp_dir}/%(title)s.%(ext)s", 
-                    "merge_output_format": "mp4", 
-                    "quiet": True, 
-                    "noplaylist": True, 
-                    # Better compatibility 
-                    "nocheckcertificate": True, 
-                    "geo_bypass": True, 
-                    # Browser-like headers 
-                    "http_headers": { 
-                        "User-Agent": ( 
-                            "Mozilla/5.0 "
-                            "(Windows NT 10.0; Win64; x64) "
-                            "AppleWebKit/537.36 "
-                            "(KHTML, like Gecko) "
-                            "Chrome/122.0.0.0 Safari/537.36" 
-                            )
-                        }, 
-                    # Avoid some YouTube restrictions 
-                    "extractor_args": { 
-                        "youtube": { 
-                            "player_client": ["android"] 
-                        } 
-                    } 
+
+                ydl_opts = {
+                    "format": "best",
+                    "outtmpl": f"{temp_dir}/%(title)s.%(ext)s",
+                    "merge_output_format": "mp4",
+                    "quiet": True,
+                    "noplaylist": True,
+                    "nocheckcertificate": True,
+                    "geo_bypass": True
                 }
+
 
                 with yt_dlp.YoutubeDL(
                     ydl_opts
