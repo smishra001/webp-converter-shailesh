@@ -8,8 +8,7 @@ from pathlib import Path
 import json
 import os
 import base64
-import yt_dlp
-import tempfile
+
 
 # =====================================================
 # PAGE CONFIG
@@ -82,10 +81,9 @@ def copy_button(text, key):
 # TABS
 # =====================================================
 
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2 = st.tabs([
     "🖼 Image Converter",
     "📝 Prompt Manager",
-    "🎥 Video Downloader"
 ])
 
 # =====================================================
@@ -425,6 +423,3 @@ with tab2:
 
             st.divider()
 
-# =====================================================
-# TAB 3 — VIDEO DOWNLOADER
-# =====================================================
