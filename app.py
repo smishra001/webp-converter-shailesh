@@ -9,13 +9,12 @@ import json
 import os
 import base64
 
-
 # =====================================================
 # PAGE CONFIG
 # =====================================================
 
 st.set_page_config(
-    page_title="AI Tools Suite",
+    page_title="Bulk WebP Converter + Prompt Manager",
     layout="wide"
 )
 
@@ -42,20 +41,16 @@ def save_prompts(data):
         json.dump(data, f, indent=4)
 
 # =====================================================
-# COPY BUTTON
+# COPY BUTTON FUNCTION
 # =====================================================
 
 def copy_button(text, key):
 
-    b64 = base64.b64encode(
-        text.encode()
-    ).decode()
+    b64 = base64.b64encode(text.encode()).decode()
 
     copy_script = f"""
         <button onclick="
-        navigator.clipboard.writeText(
-        atob('{b64}')
-        );
+        navigator.clipboard.writeText(atob('{b64}'));
         "
         style="
             background:#111827;
@@ -72,10 +67,7 @@ def copy_button(text, key):
         </button>
     """
 
-    st.components.v1.html(
-        copy_script,
-        height=45
-    )
+    st.components.v1.html(copy_script, height=45)
 
 # =====================================================
 # TABS
@@ -83,7 +75,7 @@ def copy_button(text, key):
 
 tab1, tab2 = st.tabs([
     "🖼 Image Converter",
-    "📝 Prompt Manager",
+    "📝 Prompt Manager"
 ])
 
 # =====================================================
@@ -92,9 +84,21 @@ tab1, tab2 = st.tabs([
 
 with tab1:
 
-    st.title(
-        "🖼 Bulk JPG/PNG Crop + WebP Converter"
+    st.title("🖼 Bulk JPG/PNG Crop + WebP Converter")
+
+    st.write(
+        """
+Upload multiple JPG or PNG images,
+crop them to exact size,
+rename files,
+convert to WebP,
+and download individually or as ZIP.
+"""
     )
+
+    # =================================================
+    # SIDEBAR SETTINGS
+    # =================================================
 
     st.sidebar.header("⚙ Settings")
 
@@ -119,11 +123,19 @@ with tab1:
         value=1152
     )
 
+    # =================================================
+    # FILE UPLOADER
+    # =================================================
+
     uploaded_files = st.file_uploader(
         "Upload JPG or PNG Images",
         type=["jpg", "jpeg", "png"],
         accept_multiple_files=True
     )
+
+    # =================================================
+    # MAIN APP
+    # =================================================
 
     if uploaded_files:
 
@@ -136,35 +148,31 @@ with tab1:
             False
         ) as zip_file:
 
-            for index, uploaded_file in enumerate(
-                uploaded_files
-            ):
+            for index, uploaded_file in enumerate(uploaded_files):
 
                 st.divider()
 
-                st.header(
-                    f"Image {index + 1}"
-                )
+                st.header(f"Image {index + 1}")
 
-                image = Image.open(
-                    uploaded_file
+                image = Image.open(uploaded_file)
+
+                st.write(
+                    f"Original Resolution: "
+                    f"{image.width} × {image.height}"
                 )
 
                 custom_name = st.text_input(
                     "Enter File Name",
-                    value=Path(
-                        uploaded_file.name
-                    ).stem,
+                    value=Path(uploaded_file.name).stem,
                     key=f"name_{index}"
                 )
+
+                st.subheader("✂ Crop Image")
 
                 cropped_img = st_cropper(
                     image,
                     realtime_update=True,
-                    aspect_ratio=(
-                        crop_width,
-                        crop_height
-                    ),
+                    aspect_ratio=(crop_width, crop_height),
                     return_type="image",
                     box_color="#FF4B4B",
                     should_resize_image=False,
@@ -172,44 +180,85 @@ with tab1:
                 )
 
                 final_img = cropped_img.resize(
-                    (
-                        crop_width,
-                        crop_height
-                    )
+                    (crop_width, crop_height)
                 )
 
                 output = io.BytesIO()
 
-                final_img.convert(
-                    "RGB"
-                ).save(
-                    output,
-                    format="WEBP",
-                    quality=quality,
-                    optimize=True
-                )
+                if final_img.mode == "RGBA":
+
+                    final_img.save(
+                        output,
+                        format="WEBP",
+                        quality=quality,
+                        optimize=True
+                    )
+
+                else:
+
+                    final_img.convert("RGB").save(
+                        output,
+                        format="WEBP",
+                        quality=quality,
+                        optimize=True
+                    )
 
                 output.seek(0)
+
+                original_size = (
+                    len(uploaded_file.getvalue()) / 1024
+                )
+
+                converted_size = (
+                    len(output.getvalue()) / 1024
+                )
+
+                saved = original_size - converted_size
+
+                saved_percent = (
+                    saved / original_size
+                ) * 100
 
                 col1, col2 = st.columns(2)
 
                 with col1:
 
+                    st.subheader("Original Image")
+
                     st.image(
                         image,
-                        caption="Original"
+                        width=min(image.width, 500)
+                    )
+
+                    st.info(
+                        f"""
+Resolution: {image.width} × {image.height}
+
+Original Size: {original_size:.2f} KB
+"""
                     )
 
                 with col2:
 
+                    st.subheader("Converted WebP")
+
                     st.image(
                         final_img,
-                        caption="Converted"
+                        width=min(crop_width, 400)
+                    )
+
+                    st.success(
+                        f"""
+Resolution: {crop_width} × {crop_height}
+
+Converted Size: {converted_size:.2f} KB
+
+Saved: {saved_percent:.1f}%
+"""
                     )
 
                 webp_filename = (
-                    custom_name.strip()
-                    + ".webp"
+                    custom_name.strip() + ".webp"
                 )
 
                 st.download_button(
@@ -226,6 +275,8 @@ with tab1:
                 )
 
         zip_buffer.seek(0)
+
+        st.divider()
 
         st.download_button(
             label="📦 Download All as ZIP",
@@ -244,6 +295,10 @@ with tab2:
 
     prompts = load_prompts()
 
+    # =================================================
+    # SESSION STATE
+    # =================================================
+
     if "edit_index" not in st.session_state:
         st.session_state.edit_index = None
 
@@ -259,6 +314,8 @@ with tab2:
     # =================================================
 
     with st.form("prompt_form"):
+
+        st.subheader("Add / Edit Prompt")
 
         title = st.text_input(
             "Title",
@@ -291,10 +348,8 @@ with tab2:
                 "ref": ref_url
             }
 
-            if (
-                st.session_state.edit_index
-                is not None
-            ):
+            # EDIT
+            if st.session_state.edit_index is not None:
 
                 prompts[
                     st.session_state.edit_index
@@ -302,15 +357,18 @@ with tab2:
 
                 st.session_state.edit_index = None
 
+                save_prompts(prompts)
+
+                st.success("Prompt Updated!")
+
+            # NEW
             else:
 
                 prompts.append(new_data)
 
-            save_prompts(prompts)
+                save_prompts(prompts)
 
-            st.success(
-                "Prompt Saved Successfully!"
-            )
+                st.success("Prompt Saved!")
 
             st.rerun()
 
@@ -320,9 +378,45 @@ with tab2:
     # TABLE HEADER
     # =================================================
 
-    h1, h2, h3, h4 = st.columns(
-        [2, 4, 2, 2]
-    )
+    st.markdown("""
+    <style>
+
+    .table-header{
+        background:#111827;
+        color:white;
+        padding:14px;
+        border-radius:10px;
+        font-weight:600;
+        margin-bottom:12px;
+    }
+
+    .table-row{
+        border:1px solid #e5e7eb;
+        border-radius:12px;
+        padding:15px;
+        margin-bottom:14px;
+        background:white;
+    }
+
+    .prompt-box{
+        background:#f3f4f6;
+        padding:10px;
+        border-radius:8px;
+        font-size:14px;
+        height:120px;
+        overflow:auto;
+    }
+
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.subheader("📚 Saved Prompts")
+
+    # =================================================
+    # HEADER ROW
+    # =================================================
+
+    h1, h2, h3, h4 = st.columns([2, 4, 2, 2])
 
     with h1:
         st.markdown("### Title")
@@ -348,22 +442,26 @@ with tab2:
 
     else:
 
-        for index, item in enumerate(
-            prompts
-        ):
+        for index, item in enumerate(prompts):
 
             c1, c2, c3, c4 = st.columns(
                 [2, 4, 2, 2]
             )
 
+            # =========================================
             # TITLE
+            # =========================================
+
             with c1:
 
                 st.markdown(
                     f"### {item['title']}"
                 )
 
+            # =========================================
             # PROMPT
+            # =========================================
+
             with c2:
 
                 st.code(
@@ -371,7 +469,10 @@ with tab2:
                     language=None
                 )
 
+            # =========================================
             # IMAGE
+            # =========================================
+
             with c3:
 
                 if item["ref"]:
@@ -382,6 +483,7 @@ with tab2:
                         style="
                             width:140px;
                             border-radius:10px;
+                            cursor:pointer;
                             border:1px solid #ddd;
                         ">
                     </a>
@@ -392,7 +494,14 @@ with tab2:
                         unsafe_allow_html=True
                     )
 
+                else:
+
+                    st.info("No Image")
+
+            # =========================================
             # ACTIONS
+            # =========================================
+
             with c4:
 
                 copy_button(
@@ -419,7 +528,10 @@ with tab2:
 
                     save_prompts(prompts)
 
+                    st.success(
+                        "Prompt Deleted"
+                    )
+
                     st.rerun()
 
             st.divider()
-
