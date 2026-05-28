@@ -8,13 +8,15 @@ from pathlib import Path
 import json
 import os
 import base64
+import yt_dlp
+import tempfile
 
 # =====================================================
 # PAGE CONFIG
 # =====================================================
 
 st.set_page_config(
-    page_title="Bulk WebP Converter + Prompt Manager",
+    page_title="AI Tools Suite",
     layout="wide"
 )
 
@@ -41,16 +43,20 @@ def save_prompts(data):
         json.dump(data, f, indent=4)
 
 # =====================================================
-# COPY BUTTON FUNCTION
+# COPY BUTTON
 # =====================================================
 
 def copy_button(text, key):
 
-    b64 = base64.b64encode(text.encode()).decode()
+    b64 = base64.b64encode(
+        text.encode()
+    ).decode()
 
     copy_script = f"""
         <button onclick="
-        navigator.clipboard.writeText(atob('{b64}'));
+        navigator.clipboard.writeText(
+        atob('{b64}')
+        );
         "
         style="
             background:#111827;
@@ -67,15 +73,19 @@ def copy_button(text, key):
         </button>
     """
 
-    st.components.v1.html(copy_script, height=45)
+    st.components.v1.html(
+        copy_script,
+        height=45
+    )
 
 # =====================================================
 # TABS
 # =====================================================
 
-tab1, tab2 = st.tabs([
+tab1, tab2, tab3 = st.tabs([
     "🖼 Image Converter",
-    "📝 Prompt Manager"
+    "📝 Prompt Manager",
+    "🎥 Video Downloader"
 ])
 
 # =====================================================
@@ -84,21 +94,9 @@ tab1, tab2 = st.tabs([
 
 with tab1:
 
-    st.title("🖼 Bulk JPG/PNG Crop + WebP Converter")
-
-    st.write(
-        """
-Upload multiple JPG or PNG images,
-crop them to exact size,
-rename files,
-convert to WebP,
-and download individually or as ZIP.
-"""
+    st.title(
+        "🖼 Bulk JPG/PNG Crop + WebP Converter"
     )
-
-    # =================================================
-    # SIDEBAR SETTINGS
-    # =================================================
 
     st.sidebar.header("⚙ Settings")
 
@@ -123,19 +121,11 @@ and download individually or as ZIP.
         value=1152
     )
 
-    # =================================================
-    # FILE UPLOADER
-    # =================================================
-
     uploaded_files = st.file_uploader(
         "Upload JPG or PNG Images",
         type=["jpg", "jpeg", "png"],
         accept_multiple_files=True
     )
-
-    # =================================================
-    # MAIN APP
-    # =================================================
 
     if uploaded_files:
 
@@ -148,31 +138,35 @@ and download individually or as ZIP.
             False
         ) as zip_file:
 
-            for index, uploaded_file in enumerate(uploaded_files):
+            for index, uploaded_file in enumerate(
+                uploaded_files
+            ):
 
                 st.divider()
 
-                st.header(f"Image {index + 1}")
+                st.header(
+                    f"Image {index + 1}"
+                )
 
-                image = Image.open(uploaded_file)
-
-                st.write(
-                    f"Original Resolution: "
-                    f"{image.width} × {image.height}"
+                image = Image.open(
+                    uploaded_file
                 )
 
                 custom_name = st.text_input(
                     "Enter File Name",
-                    value=Path(uploaded_file.name).stem,
+                    value=Path(
+                        uploaded_file.name
+                    ).stem,
                     key=f"name_{index}"
                 )
-
-                st.subheader("✂ Crop Image")
 
                 cropped_img = st_cropper(
                     image,
                     realtime_update=True,
-                    aspect_ratio=(crop_width, crop_height),
+                    aspect_ratio=(
+                        crop_width,
+                        crop_height
+                    ),
                     return_type="image",
                     box_color="#FF4B4B",
                     should_resize_image=False,
@@ -180,85 +174,44 @@ and download individually or as ZIP.
                 )
 
                 final_img = cropped_img.resize(
-                    (crop_width, crop_height)
+                    (
+                        crop_width,
+                        crop_height
+                    )
                 )
 
                 output = io.BytesIO()
 
-                if final_img.mode == "RGBA":
-
-                    final_img.save(
-                        output,
-                        format="WEBP",
-                        quality=quality,
-                        optimize=True
-                    )
-
-                else:
-
-                    final_img.convert("RGB").save(
-                        output,
-                        format="WEBP",
-                        quality=quality,
-                        optimize=True
-                    )
+                final_img.convert(
+                    "RGB"
+                ).save(
+                    output,
+                    format="WEBP",
+                    quality=quality,
+                    optimize=True
+                )
 
                 output.seek(0)
-
-                original_size = (
-                    len(uploaded_file.getvalue()) / 1024
-                )
-
-                converted_size = (
-                    len(output.getvalue()) / 1024
-                )
-
-                saved = original_size - converted_size
-
-                saved_percent = (
-                    saved / original_size
-                ) * 100
 
                 col1, col2 = st.columns(2)
 
                 with col1:
 
-                    st.subheader("Original Image")
-
                     st.image(
                         image,
-                        width=min(image.width, 500)
-                    )
-
-                    st.info(
-                        f"""
-Resolution: {image.width} × {image.height}
-
-Original Size: {original_size:.2f} KB
-"""
+                        caption="Original"
                     )
 
                 with col2:
 
-                    st.subheader("Converted WebP")
-
                     st.image(
                         final_img,
-                        width=min(crop_width, 400)
-                    )
-
-                    st.success(
-                        f"""
-Resolution: {crop_width} × {crop_height}
-
-Converted Size: {converted_size:.2f} KB
-
-Saved: {saved_percent:.1f}%
-"""
+                        caption="Converted"
                     )
 
                 webp_filename = (
-                    custom_name.strip() + ".webp"
+                    custom_name.strip()
+                    + ".webp"
                 )
 
                 st.download_button(
@@ -275,8 +228,6 @@ Saved: {saved_percent:.1f}%
                 )
 
         zip_buffer.seek(0)
-
-        st.divider()
 
         st.download_button(
             label="📦 Download All as ZIP",
@@ -295,10 +246,6 @@ with tab2:
 
     prompts = load_prompts()
 
-    # =================================================
-    # SESSION STATE
-    # =================================================
-
     if "edit_index" not in st.session_state:
         st.session_state.edit_index = None
 
@@ -314,8 +261,6 @@ with tab2:
     # =================================================
 
     with st.form("prompt_form"):
-
-        st.subheader("Add / Edit Prompt")
 
         title = st.text_input(
             "Title",
@@ -348,8 +293,10 @@ with tab2:
                 "ref": ref_url
             }
 
-            # EDIT
-            if st.session_state.edit_index is not None:
+            if (
+                st.session_state.edit_index
+                is not None
+            ):
 
                 prompts[
                     st.session_state.edit_index
@@ -357,18 +304,15 @@ with tab2:
 
                 st.session_state.edit_index = None
 
-                save_prompts(prompts)
-
-                st.success("Prompt Updated!")
-
-            # NEW
             else:
 
                 prompts.append(new_data)
 
-                save_prompts(prompts)
+            save_prompts(prompts)
 
-                st.success("Prompt Saved!")
+            st.success(
+                "Prompt Saved Successfully!"
+            )
 
             st.rerun()
 
@@ -378,45 +322,9 @@ with tab2:
     # TABLE HEADER
     # =================================================
 
-    st.markdown("""
-    <style>
-
-    .table-header{
-        background:#111827;
-        color:white;
-        padding:14px;
-        border-radius:10px;
-        font-weight:600;
-        margin-bottom:12px;
-    }
-
-    .table-row{
-        border:1px solid #e5e7eb;
-        border-radius:12px;
-        padding:15px;
-        margin-bottom:14px;
-        background:white;
-    }
-
-    .prompt-box{
-        background:#f3f4f6;
-        padding:10px;
-        border-radius:8px;
-        font-size:14px;
-        height:120px;
-        overflow:auto;
-    }
-
-    </style>
-    """, unsafe_allow_html=True)
-
-    st.subheader("📚 Saved Prompts")
-
-    # =================================================
-    # HEADER ROW
-    # =================================================
-
-    h1, h2, h3, h4 = st.columns([2, 4, 2, 2])
+    h1, h2, h3, h4 = st.columns(
+        [2, 4, 2, 2]
+    )
 
     with h1:
         st.markdown("### Title")
@@ -442,26 +350,22 @@ with tab2:
 
     else:
 
-        for index, item in enumerate(prompts):
+        for index, item in enumerate(
+            prompts
+        ):
 
             c1, c2, c3, c4 = st.columns(
                 [2, 4, 2, 2]
             )
 
-            # =========================================
             # TITLE
-            # =========================================
-
             with c1:
 
                 st.markdown(
                     f"### {item['title']}"
                 )
 
-            # =========================================
             # PROMPT
-            # =========================================
-
             with c2:
 
                 st.code(
@@ -469,10 +373,7 @@ with tab2:
                     language=None
                 )
 
-            # =========================================
             # IMAGE
-            # =========================================
-
             with c3:
 
                 if item["ref"]:
@@ -483,7 +384,6 @@ with tab2:
                         style="
                             width:140px;
                             border-radius:10px;
-                            cursor:pointer;
                             border:1px solid #ddd;
                         ">
                     </a>
@@ -494,14 +394,7 @@ with tab2:
                         unsafe_allow_html=True
                     )
 
-                else:
-
-                    st.info("No Image")
-
-            # =========================================
             # ACTIONS
-            # =========================================
-
             with c4:
 
                 copy_button(
@@ -528,11 +421,160 @@ with tab2:
 
                     save_prompts(prompts)
 
-                    st.success(
-                        "Prompt Deleted"
-                    )
-
                     st.rerun()
 
             st.divider()
 
+# =====================================================
+# TAB 3 — VIDEO DOWNLOADER
+# =====================================================
+
+with tab3:
+
+    st.title(
+        "🎥 Social Media Video Downloader"
+    )
+
+    st.write(
+        """
+Download videos from:
+
+- YouTube
+- Instagram
+- Facebook
+- Pinterest
+"""
+    )
+
+    st.divider()
+
+    video_url = st.text_input(
+        "Paste Video URL"
+    )
+
+    quality = st.selectbox(
+        "Select Quality",
+        [
+            "Best",
+            "720p",
+            "480p",
+            "360p"
+        ]
+    )
+
+    download_btn = st.button(
+        "⬇ Download Video",
+        use_container_width=True
+    )
+
+    if download_btn and video_url:
+
+        try:
+
+            with st.spinner(
+                "Downloading video..."
+            ):
+
+                temp_dir = tempfile.mkdtemp()
+
+                if quality == "Best":
+
+                    format_code = "best"
+
+                elif quality == "720p":
+
+                    format_code = (
+                        "bestvideo[height<=720]+"
+                        "bestaudio/best[height<=720]"
+                    )
+
+                elif quality == "480p":
+
+                    format_code = (
+                        "bestvideo[height<=480]+"
+                        "bestaudio/best[height<=480]"
+                    )
+
+                else:
+
+                    format_code = (
+                        "bestvideo[height<=360]+"
+                        "bestaudio/best[height<=360]"
+                    )
+
+                ydl_opts = {
+                    "format": format_code,
+                    "outtmpl": (
+                        f"{temp_dir}/%(title)s.%(ext)s"
+                    ),
+                    "merge_output_format": "mp4",
+                    "quiet": True,
+                    "noplaylist": True
+                }
+
+                with yt_dlp.YoutubeDL(
+                    ydl_opts
+                ) as ydl:
+
+                    info = ydl.extract_info(
+                        video_url,
+                        download=True
+                    )
+
+                    downloaded_file = None
+
+                    for file in os.listdir(
+                        temp_dir
+                    ):
+
+                        if file.endswith(
+                            (
+                                ".mp4",
+                                ".mkv",
+                                ".webm"
+                            )
+                        ):
+
+                            downloaded_file = os.path.join(
+                                temp_dir,
+                                file
+                            )
+
+                            break
+
+                if downloaded_file:
+
+                    st.success(
+                        "Video Downloaded Successfully!"
+                    )
+
+                    st.video(
+                        downloaded_file
+                    )
+
+                    with open(
+                        downloaded_file,
+                        "rb"
+                    ) as file:
+
+                        st.download_button(
+                            label="⬇ Download File",
+                            data=file,
+                            file_name=os.path.basename(
+                                downloaded_file
+                            ),
+                            mime="video/mp4",
+                            use_container_width=True
+                        )
+
+                else:
+
+                    st.error(
+                        "Could not find downloaded file."
+                    )
+
+        except Exception as e:
+
+            st.error(
+                f"Error: {str(e)}"
+            )
