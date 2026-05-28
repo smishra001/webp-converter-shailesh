@@ -1,4 +1,4 @@
-streamlit==1.45.1 
-pillow==11.2.1 
-streamlit-cropper==0.3.1 
-pandas
+streamlit==1.45.1
+pillow==11.1.0
+streamlit-cropper==0.3.1
+pandas==2.2.3
